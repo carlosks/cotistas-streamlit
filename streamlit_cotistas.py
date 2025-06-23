@@ -1,4 +1,4 @@
-# streamlit_cotistas.py – versão completa e corrigida (sem emojis)
+# streamlit_cotistas.py – versão completa e corrigida (com remoção de custos e fluxo de caixa)
 # Interface de Administração de Cotistas, Custos e Relatórios de Fluxo de Caixa
 # Compatível com Windows (UTF‑8)
 
@@ -16,9 +16,7 @@ CENTROS_CUSTO = [
 ]
 
 # ------------- Funções utilitárias -------------
-
 def carregar_csv(path: str, cols: list[str]) -> pd.DataFrame:
-    """Carrega um CSV em DataFrame garantindo as colunas obrigatórias."""
     if os.path.exists(path):
         try:
             df = pd.read_csv(path)
@@ -37,7 +35,6 @@ def total_cotas(df: pd.DataFrame) -> int:
     return int(df["Cotas"].sum()) if not df.empty else 0
 
 def resumo_rateio(df_cot: pd.DataFrame, df_cus: pd.DataFrame, mes: int, ano: int):
-    """Retorna (df_rateio, total_custos, valor_por_cota)."""
     if df_cus.empty or df_cot.empty:
         return pd.DataFrame(), 0.0, 0.0
     df_cus["Data"] = pd.to_datetime(df_cus["Data"], errors="coerce")
@@ -62,8 +59,8 @@ menu = st.sidebar.radio(
     [
         "Cotistas",
         "Custos",
-        "Fluxo de Caixa por Cota (10 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)",
-        "Fluxo de Caixa para 10 Cotas (100 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)",
+        "Fluxo por 1 Cota (72 meses)",
+        "Fluxo para 10 Cotas (72 meses)",
     ],
     index=0,
 )
@@ -151,12 +148,52 @@ elif menu == "Custos":
     st.subheader("Custos Lançados")
     st.dataframe(df_custos, use_container_width=True)
 
-# ================================================================
-# GUIA 3 – Fluxo de Caixa por 1 Cota
-# ================================================================
-elif menu.startswith("Fluxo de Caixa por Cota"):
-    st.header(menu)
+    st.divider()
+    st.subheader("Remover custos")
+    descricao_filter = st.text_input("Descrição contém:")
+    data_filter = st.date_input("Data específica:", value=None)
+    centro_options = ["Todos"] + sorted(set(df_custos["Centro"].dropna().unique()))
+    centro_filter = st.selectbox("Centro de custo:", centro_options)
 
+    df_filtrado = df_custos.copy()
+    df_filtrado["Data"] = pd.to_datetime(df_filtrado["Data"], errors="coerce")
+
+    if descricao_filter:
+        df_filtrado = df_filtrado[df_filtrado["Descricao"].str.contains(descricao_filter, case=False)]
+    if data_filter:
+        df_filtrado = df_filtrado[df_filtrado["Data"].dt.date == data_filter]
+    if centro_filter != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["Centro"] == centro_filter]
+
+    if df_filtrado.empty:
+        st.info("Nenhum custo encontrado com os filtros aplicados.")
+    else:
+        df_filtrado = df_filtrado.reset_index(drop=True)
+        df_filtrado["Selecionar"] = False
+
+        edited_df = st.data_editor(
+            df_filtrado,
+            column_config={"Selecionar": st.column_config.CheckboxColumn("Selecionar")},
+            hide_index=True,
+            key="editor_remocao"
+        )
+        selecionados = edited_df[edited_df["Selecionar"] == True]
+
+        if st.button("Remover Selecionados"):
+            if selecionados.empty:
+                st.info("Nenhum custo selecionado para remover.")
+            else:
+                df_custos = df_custos.merge(selecionados.drop(columns=["Selecionar"]), how="left", indicator=True)
+                df_custos = df_custos[df_custos["_merge"] == "left_only"].drop(columns=["_merge"])
+                salvar_csv(df_custos, ARQ_CUSTOS)
+                st.success("Custos removidos com sucesso!")
+                st.rerun()
+
+# ================================================================
+# GUIA 3 – Fluxo por 1 Cota
+# ================================================================
+elif menu == "Fluxo por 1 Cota (72 meses)":
+    st.header("Fluxo de Caixa por Cota (10 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)")
     st.markdown("""
     **Parâmetros:**  
     Prenhez 80%; 50% machos / 50% fêmeas; 50% dos machos vendidos a 160 kg, 50% a 320 kg;  
@@ -167,53 +204,49 @@ elif menu.startswith("Fluxo de Caixa por Cota"):
 
     st.markdown("""
     | Ciclo | Vacas iniciais | Nascimentos | Machos (160/320kg) | Fêmeas retidas | Vacas finais |
-    |-------|----------------|-------------|---------------------|----------------|---------------|
-    | 1     | 10             | 8           | 2 / 2               | 4              | 14            |
-    | 2     | 14             | 11,2        | 2,8 / 2,8           | 5,6            | 19,6          |
-    | 3     | 19,6           | 15,7        | 3,9 / 3,9           | 7,8            | 27,4          |
-    | 4     | 27,4           | 22          | 5,5 / 5,5           | 11             | 38,4          |
+    |-----|-----|-----|-----|-----|-----|
+    | 1 | 10 | 8 | 2 / 2 | 4 | 14 |
+    | 2 | 14 | 11,2 | 2,8 / 2,8 | 5,6 | 19,6 |
+    | 3 | 19,6 | 15,7 | 3,9 / 3,9 | 7,8 | 27,4 |
+    | 4 | 27,4 | 22 | 5,5 / 5,5 | 11 | 38,4 |
     """)
 
     st.markdown("""
-    **Receitas com machos:**  
-    10.176 + 14.250 + 19.958 + 27.933 = **R$ 72.317**
+    **Receitas com machos:** 10.176 + 14.250 + 19.958 + 27.933 = **R$ 72.317**
 
-    **Custos (72 meses):**  
-    - Compra 10 novilhas: R$ 19.328  
-    - Manutenção: R$ 17.190  
-    - Inseminações: R$ 2.840  
-
+    **Custos (72 meses):** Compra 10 novilhas R$ 19.328 • Manutenção R$ 17.190 • Inseminações R$ 2.840  
     **Lucro líquido por cota:** **R$ 32.959** em 72 meses
     """)
 
 # ================================================================
-# GUIA 4 – Fluxo de Caixa para 10 Cotas
+# GUIA 4 – Fluxo para 10 Cotas
 # ================================================================
-else:
+elif menu == "Fluxo para 10 Cotas (72 meses)":
     st.header("Fluxo de Caixa para 10 Cotas (100 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)")
 
     st.markdown("""
-    | Ciclo | Vacas Iniciais | Nascimentos | Machos (160/320kg) | Fêmeas Retidas | Vacas Finais |
-    |-------|----------------|-------------|---------------------|----------------|---------------|
-    | 1     | 100            | 80          | 20 / 20             | 40             | 140           |
-    | 2     | 140            | 112         | 28 / 28             | 56             | 196           |
-    | 3     | 196            | 157         | 39 / 39             | 78             | 274           |
-    | 4     | 274            | 220         | 55 / 55             | 110            | 384           |
-    """)
+    ### Crescimento do Rebanho Fêmea
 
-    st.markdown("""
-    **Receita com Machos (10 cotas):**  
-    - Ciclo 1: R$ 101.760  
-    - Ciclo 2: R$ 142.500  
-    - Ciclo 3: R$ 199.580  
-    - Ciclo 4: R$ 279.330  
-    **Total: R$ 723.170**
+    | Ciclo | Vacas início | Vacas fim |
+    |-------|--------------|-----------|
+    | 1     | 100          | 140       |
+    | 2     | 140          | 196       |
+    | 3     | 196          | 274       |
+    | 4     | 274          | 384       |
 
-    **Custos Totais:**  
-    - Compra 100 novilhas: R$ 193.280  
-    - Manutenção: R$ 171.900  
-    - Inseminações: R$ 28.400  
+    ### Receita com venda de machos (10 cotas)
 
-    **Lucro líquido das 10 cotas:** **R$ 329.590** em 72 meses  
-    Lucro líquido por cota: **R$ 32.959**
+    - Ciclo 1: 25.440
+    - Ciclo 2: 35.625
+    - Ciclo 3: 49.895
+    - Ciclo 4: 69.832
+
+    **Total Receita:** R$ 180.792
+
+    **Custos:**
+    - Compra de 100 novilhas: R$ 193.280
+    - Manutenção por 72 meses: R$ 171.900
+    - Inseminações: R$ 28.400
+
+    **Lucro líquido consolidado:** **R$ 214.788**
     """)
