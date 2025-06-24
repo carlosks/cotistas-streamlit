@@ -59,7 +59,6 @@ menu = st.sidebar.radio(
     [
         "Cotistas",
         "Custos",
-        "Fluxo por 1 Cota (72 meses)",
         "Fluxo para 10 Cotas (72 meses)",
     ],
     index=0,
@@ -190,36 +189,7 @@ elif menu == "Custos":
                 st.rerun()
 
 # ================================================================
-# GUIA 3 – Fluxo por 1 Cota
-# ================================================================
-elif menu == "Fluxo por 1 Cota (72 meses)":
-    st.header("Fluxo de Caixa por Cota (10 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)")
-    st.markdown("""
-    **Parâmetros:**  
-    Prenhez 80%; 50% machos / 50% fêmeas; 50% dos machos vendidos a 160 kg, 50% a 320 kg;  
-    Fêmeas retidas e inseminadas aos 250 kg (R$ 100 cada).  
-    Preço de compra: **R$ 12,08/kg**  Preço de venda: **R$ 10,60/kg**  
-    Custo de manutenção: **R$ 238,75 por mês**
-    """)
-
-    st.markdown("""
-    | Ciclo | Vacas iniciais | Nascimentos | Machos (160/320kg) | Fêmeas retidas | Vacas finais |
-    |-----|-----|-----|-----|-----|-----|
-    | 1 | 10 | 8 | 2 / 2 | 4 | 14 |
-    | 2 | 14 | 11,2 | 2,8 / 2,8 | 5,6 | 19,6 |
-    | 3 | 19,6 | 15,7 | 3,9 / 3,9 | 7,8 | 27,4 |
-    | 4 | 27,4 | 22 | 5,5 / 5,5 | 11 | 38,4 |
-    """)
-
-    st.markdown("""
-    **Receitas com machos:** 10.176 + 14.250 + 19.958 + 27.933 = **R$ 72.317**
-
-    **Custos (72 meses):** Compra 10 novilhas R$ 19.328 • Manutenção R$ 17.190 • Inseminações R$ 2.840  
-    **Lucro líquido por cota:** **R$ 32.959** em 72 meses
-    """)
-
-# ================================================================
-# GUIA 4 – Fluxo para 10 Cotas
+# GUIA 3 – Fluxo para 10 Cotas
 # ================================================================
 elif menu == "Fluxo para 10 Cotas (72 meses)":
     st.header("Fluxo de Caixa para 10 Cotas (100 Vacas de Cria) - Horizonte de 4 Ciclos (72 meses)")
